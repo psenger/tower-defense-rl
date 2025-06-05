@@ -1,0 +1,18 @@
+# config.py
+SCREEN_WIDTH = 1280
+SCREEN_HEIGHT = 720
+FPS = 60
+
+# Map settings
+MAP_BACKGROUND_COLOR = (50, 50, 50)
+TOWER_RADIUS = 30
+TOWER_COLOR_NEUTRAL = (150, 150, 150)
+TOWER_COLOR_PLAYER = (0, 150, 0)
+TOWER_COLOR_ENEMY = (150, 0, 0)
+CONNECTION_COLOR = (100, 100, 100)
+
+# Battle settings
+BATTLE_SCREEN_BACKGROUND = (30, 30, 30)
+
+# Time dilation
+INITIAL_TIME_SCALE = 1.0 # 1.0 = real-time, >1.0 faster, <1.0 slower
