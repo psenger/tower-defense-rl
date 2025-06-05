@@ -170,7 +170,7 @@ python examples/ml_agent_example.py --alliance 4 --agent-name "Agent4" &
 
 1.  **Objective:** Four Alliances compete to accumulate the most "Summit Showdown Points" by capturing and holding Strongholds.
 2.  **Alliances:** Each Alliance consists of 50 individual Players.
-3.  **Game Structure:** The game is divided into a First Half (11 hours 30 minutes) and a Second Half, separated by a 30-minute Half-time break. Each half is a distinct phase for hero deployment for attacking purposes.
+3.  **Game Structure:** The game is divided into a First Half (11 hours 30 minutes) and a Second Half (11 hours 30 minutes), separated by a 30-minute Half-time break. Each half is a distinct phase for hero deployment for attacking purposes.
 
 ## II. Player & Hero Attributes
 
@@ -188,7 +188,7 @@ python examples/ml_agent_example.py --alliance 4 --agent-name "Agent4" &
     *   Each of a Player's six Selected Hero Sets has a status per game half: "Available for Attack" or "Consumed for Attack."
     *   When a Player initiates an attack action using one of their Selected Hero Sets, that specific set becomes "Consumed for Attack" for the current game half once it engages in battle, regardless of the battle's outcome.
     *   A Player cannot use a Hero Set that is "Consumed for Attack" to initiate further attacks in the current game half.
-    *   All Hero Sets revert to "Available for Attack" at the start of the Second Half.
+    *   **All Hero Sets revert to "Available for Attack" at the start of the Second Half and all Heroes are restored to full health. Dead heroes are brought back to life.**
 
 ## III. Battle Mechanics (Engaging Hero Set vs. Opposing Hero Set)
 
@@ -215,7 +215,7 @@ python examples/ml_agent_example.py --alliance 4 --agent-name "Agent4" &
     *   If the 50-step limit is reached and Heroes remain on both sides: The side that has dealt the most accumulated damage during this battle wins.
     *   If the 50-step limit is reached, Heroes remain on both sides, AND accumulated damage is equal: The side that was the initial attacker for this battle loses (i.e., the defender wins this specific tie).
 5.  **Immediate Defender Removal:**
-    *   **CRITICAL STRATEGIC RULE**: When a Hero Set (NPC or Player garrison) is completely defeated in battle, it is **immediately removed** from the Stronghold.
+    *   **CRITICAL STRATEGIC RULE**: When a Hero Set (NPC or Player garrison) is completely defeated in battle, it is **immediately removed** from the Stronghold **permanently**.
     *   This means other Alliances can observe the Stronghold and see it has fewer defenders after each battle, creating strategic opportunities.
     *   **Strategic Implication**: An Alliance could wait until multiple battles have weakened a Stronghold's defenses, then attack when only one or few defenders remain to easily capture it.
 
@@ -225,25 +225,23 @@ python examples/ml_agent_example.py --alliance 4 --agent-name "Agent4" &
     *   The game is played on a map of interconnected Strongholds.
     *   Each of the four Alliances starts at their "Alliance Home" located in one of the four corners of the map. These are their starting points and function as their initial controlled nodes.
     *   All other Strongholds are initially neutral and garrisoned by NPC Defense Teams.
-2.  **Player Stamina:**
-    *   Each Alliance Player starts the First Half with 4 "Summit Stamina."
-    *   An additional 4 Summit Stamina are replenished for each Player at the beginning of the Second Half.
-    *   Launching an attack on a Stronghold consumes 1 Summit Stamina for the attacking Player. The Player must use a Hero Set that is "Available for Attack."
+2.  **Player Attacks:**
+    *   Players can attack Strongholds adjacent to their Alliance's currently controlled Strongholds (including their Alliance Home).
+    *   To attack, a Player selects one of their Hero Sets that is "Available for Attack." This set then engages one of the Stronghold's active Defense Teams (NPC or Player garrison) in a battle (as per Section III). Upon engagement, the attacking set becomes "Consumed for Attack" for the current half.
 3.  **Attacking Strongholds:**
     *   Players can attack Strongholds adjacent to their Alliance's currently controlled Strongholds (including their Alliance Home).
     *   To attack, a Player selects one of their Hero Sets that is "Available for Attack." This set then engages one of the Stronghold's active Defense Teams (NPC or Player garrison) in a battle (as per Section III). Upon engagement, the attacking set becomes "Consumed for Attack" for the current half.
 4.  **Stronghold Defense Teams (NPCs):**
     *   Each NPC Defense Team consists of 5 NPC Heroes.
-    *   NPC Hero stats are fixed values, scaled relative to the average Player Hero stats (defined in II.2) as follows:
-        *   **Level 1 Stronghold NPC Heroes:** Each NPC Hero has stats set at 80% of the average Player Hero stat values (e.g., Attack: `4627 * 0.80`, Defense: `4195 * 0.80`, HP: `8088 * 0.80`).
-        *   **Level 2 Stronghold NPC Heroes:** Each NPC Hero has stats set at 100% of the average Player Hero stat values (e.g., Attack: `4627`, Defense: `4195`, HP: `8088`).
-        *   **Level 3 Stronghold NPC Heroes:** Each NPC Hero has stats set at 120% of the average Player Hero stat values (e.g., Attack: `4627 * 1.20`, Defense: `4195 * 1.20`, HP: `8088 * 1.20`).
-        *(These exact values will be calculated and used for all NPC heroes of a given level).*
+    *   NPC Hero stats are generated using the same distributions as Player Heroes:
+        *   Attack: Average 4627, Standard Deviation 432
+        *   Defense: Average 4195, Standard Deviation 346
+        *   Hit Points (HP): Average 8088, Standard Deviation 783
     *   Initial Number of NPC Teams:
         *   Level 3 Stronghold: 15 NPC Defense Teams
         *   Level 2 Stronghold: 12 NPC Defense Teams
         *   Level 1 Stronghold: 9 NPC Defense Teams
-    *   **NPC Respawn:** Defeated NPC Defense Teams in a Stronghold will respawn (restoring the Stronghold to its full initial NPC complement with the defined stats) at the beginning of the Second Half if the Stronghold is neutral at that time. They do not respawn during the First Half.
+    *   **NPC Teams Do NOT Respawn:** Once defeated, NPC Defense Teams are permanently removed from the game. They do not respawn at any point, including the Second Half.
 5.  **Capturing a Stronghold:**
     *   To make a Stronghold capturable, all its current NPC Defense Teams must be defeated.
     *   Once all NPC teams are cleared from a Stronghold, the Alliance that defeated the most NPC Defense Teams from that Stronghold (since those NPCs were last fully present) captures it.
@@ -251,7 +249,7 @@ python examples/ml_agent_example.py --alliance 4 --agent-name "Agent4" &
 6.  **Garrisoning Captured Strongholds (Player Teams):**
     *   When an Alliance captures a Stronghold, a single designated Lead Human Player for that Alliance manually assigns specific Player Hero Sets from any player within their Alliance to garrison the Stronghold.
     *   A Hero Set's "Consumed for Attack" status does *not* prevent it from being assigned to garrison duty by the Leader.
-    *   Assigning a Hero Set to garrison duty does *not* consume Summit Stamina for the owner of that Hero Set, nor does it directly change the set's "Consumed for Attack" status.
+    *   Assigning a Hero Set to garrison duty does *not* change the set's "Consumed for Attack" status.
     *   **Garrisoned Set Availability and Interaction with Attacking:**
         *   A Player Hero Set assigned to garrison a Stronghold is considered "on duty" at that Stronghold and will participate in defensive battles if that Stronghold is attacked.
         *   A Player Hero Set cannot simultaneously be engaged in a defensive battle at its garrisoned Stronghold AND be used by its owner to initiate an offensive attack on another Stronghold.
@@ -269,22 +267,24 @@ python examples/ml_agent_example.py --alliance 4 --agent-name "Agent4" &
     *   Decisive Phase: During the final 60 minutes of the First Half, the Protection Period for all Strongholds is reduced to 5 minutes.
 8.  **Half-time and Second Half:**
     *   The First Half lasts 11 hours and 30 minutes.
-    *   This is followed by a 30-minute Half-time period, during which no attacks can be launched.
-    *   The Second Half begins after Half-time, inheriting the map status (Stronghold ownership and player garrisons) from the end of the First Half. NPC Defense Teams respawn in neutral Strongholds as per IV.4.
-    *   All Strongholds immediately lose any active protection at the start of the Second Half.
-    *   All Alliance Players are replenished with 4 Attack Stamina.
-    *   All Player Hero Sets revert to "Available for Attack."
+    *   This is followed by a 30-minute Half-time period, during which **no attacks can be launched by any Alliance**.
+    *   The Second Half begins after Half-time, inheriting the map status (Stronghold ownership and player garrisons) from the end of the First Half.
+    *   **At the start of the Second Half:**
+        *   **All Strongholds immediately lose any active protection.**
+        *   **All Player Hero Sets revert to "Available for Attack" and all Heroes are restored to full health. Dead heroes are brought back to life.**
+        *   **Strongholds remain garrisoned as they were - occupied strongholds continue to be occupied by the same alliances.**
+        *   **No NPC respawning occurs - defeated NPCs remain permanently removed.**
     *   Other rules remain the same as the First Half.
 
 ## V. Scoring Rules ("Summit Showdown Points")
 
 *The winning Alliance is determined by the total Summit Showdown Points accumulated throughout the game.*
 
-|                     | Team Points | Occupation Points | Settlement Points |
-|:--------------------|:------------|:------------------|:------------------|
-| Level 3 Stronghold  | 80          | 720               | 6480              |
-| Level 2 Stronghold  | 60          | 420               | 3780              |
-| Level 1 Strong Hold | 40          | 200               | 1800              |
+|                     | Team Points | Occupation Points |
+|:--------------------|:------------|:------------------|
+| Level 3 Stronghold  | 80          | 720               |
+| Level 2 Stronghold  | 60          | 420               |
+| Level 1 Strong Hold | 40          | 200               |
 
 1.  **Team Points (Defeating Stronghold Defense Teams):**
     *   Awarded to an Alliance each time one of its Players defeats any Defense Team (NPC or opposing Player's garrisoned set) within a Stronghold.
@@ -292,21 +292,16 @@ python examples/ml_agent_example.py --alliance 4 --agent-name "Agent4" &
         *   Level 2 Stronghold Team Defeated: 60 Points
         *   Level 1 Stronghold Team Defeated: 40 Points
 2.  **Occupation Points (Capturing a Stronghold):**
-    *   A one-time point bonus awarded to an Alliance when it successfully captures a Stronghold (as per IV.5).
-        *   Level 3 Stronghold Captured: 720 Points
-        *   Level 2 Stronghold Captured: 420 Points
-        *   Level 1 Stronghold Captured: 200 Points
-3.  **First-Time Bonus (Capture/Team Defeat):**
-    *   A 40% bonus is applied to the base value of points earned for:
-        *   An Alliance defeating a specific NPC Defense Team slot in a Stronghold *for the first time in the game (globally across all alliances)*. (Bonus applies to the "Team Points" for that defeat, e.g., `80 + (80 * 0.40)` for a Level 3 team).
-        *   An Alliance achieving the *first occupation (capture) of a Stronghold in the game (globally)*. (Bonus applies to the "Occupation Points" for that capture, e.g., `720 + (720 * 0.40)` for a Level 3 stronghold).
-4.  **Settlement Points (Periodic Holding Bonus):**
-    *   Awarded to an Alliance if it occupies a Stronghold *at the moment Half-time begins*. This is the only time Settlement Points are awarded.
-        *   Holding Level 3 Stronghold at Half-time: 6480 Points
-        *   Holding Level 2 Stronghold at Half-time: 3780 Points
-        *   Holding Level 1 Stronghold at Half-time: 1800 Points
-5. **If there are no more Strongholds to capture for all alliances:**
-    * the game is over, and the winning Alliance is determined by the total Summit Showdown Points accumulated throughout the game.
+    *   Points awarded to an Alliance when it successfully captures a Stronghold (as per IV.5).
+    *   **If an Alliance loses control of a Stronghold to another Alliance, they lose these points.**
+    *   **Occupation Points are calculated at the end of the game based on which Strongholds each Alliance actually controls when time expires.**
+        *   Level 3 Stronghold Controlled at Game End: 720 Points
+        *   Level 2 Stronghold Controlled at Game End: 420 Points
+        *   Level 1 Stronghold Controlled at Game End: 200 Points
+3. **Game End Conditions:**
+    * The game ends after the Second Half time limit expires (23 hours total game time).
+    * If all neutral Strongholds are captured and no further expansion is possible, the game may end early.
+    * The winning Alliance is determined by the total Summit Showdown Points accumulated throughout the game.
 
 ## VI. Map Structure
 

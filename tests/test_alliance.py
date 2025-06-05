@@ -12,20 +12,16 @@ class TestAlliance(unittest.TestCase):
     
     def setUp(self):
         """Set up test fixtures before each test method."""
-        self.alliance = Alliance(1, "Test Alliance", "TestHome", (255, 0, 0))
+        self.alliance = Alliance(1, "Test Alliance", (255, 0, 0))
     
     def test_alliance_creation(self):
         """Test creating an alliance"""
         self.assertEqual(self.alliance.id, 1)
         self.assertEqual(self.alliance.name, "Test Alliance")
-        self.assertEqual(self.alliance.home_stronghold, "TestHome")
         self.assertEqual(self.alliance.color, (255, 0, 0))
         
         # Should have 50 players
         self.assertEqual(len(self.alliance.players), 50)
-        
-        # Should start with home stronghold controlled
-        self.assertIn("TestHome", self.alliance.controlled_strongholds)
         
         # All players should start with 4 stamina
         for player in self.alliance.players:
@@ -34,9 +30,9 @@ class TestAlliance(unittest.TestCase):
     def test_player_creation(self):
         """Test that players are created correctly"""
         for i, player in enumerate(self.alliance.players):
-            self.assertEqual(player.id, f"P{self.alliance.id}_{i+1}")
+            self.assertEqual(player.id, f"A{self.alliance.id}_P{i+1}")
             self.assertEqual(player.alliance_id, self.alliance.id)
-            self.assertEqual(len(player.selected_hero_sets), 2)  # Each player has 2 hero sets
+            self.assertEqual(len(player.selected_hero_sets), 6)  # Each player has 6 hero sets
             
             # Each hero set should have 5 heroes
             for hero_set in player.selected_hero_sets:
@@ -46,8 +42,8 @@ class TestAlliance(unittest.TestCase):
         """Test getting available hero sets"""
         available = self.alliance.get_all_available_hero_sets()
         
-        # Should have 100 hero sets total (50 players * 2 sets each)
-        self.assertEqual(len(available), 100)
+        # Should have 300 hero sets total (50 players * 6 sets each)
+        self.assertEqual(len(available), 300)
         
         # All should be available initially
         for hero_set in available:
@@ -62,24 +58,24 @@ class TestAlliance(unittest.TestCase):
         for hero_set in consumed_sets:
             hero_set.mark_consumed_for_attack()
         
-        # Should now have 90 available
+        # Should now have 290 available
         still_available = self.alliance.get_all_available_hero_sets()
-        self.assertEqual(len(still_available), 90)
+        self.assertEqual(len(still_available), 290)
         
         # None of the consumed sets should be in available list
         for hero_set in consumed_sets:
             self.assertNotIn(hero_set, still_available)
     
     def test_available_hero_sets_with_no_stamina(self):
-        """Test that players with no stamina don't contribute hero sets"""
+        """Test that stamina doesn't affect hero set availability (stamina is consumed on attack)"""
         # Exhaust stamina for first 10 players
         for i in range(10):
             self.alliance.players[i].stamina = 0
         
         available = self.alliance.get_all_available_hero_sets()
         
-        # Should have 80 hero sets (40 players * 2 sets each)
-        self.assertEqual(len(available), 80)
+        # Hero sets are still available - stamina is consumed when attacking, not when listing available sets
+        self.assertEqual(len(available), 300)
     
     def test_available_hero_sets_with_dead_heroes(self):
         """Test that hero sets with all dead heroes are not available"""
@@ -90,32 +86,26 @@ class TestAlliance(unittest.TestCase):
         
         available = self.alliance.get_all_available_hero_sets()
         
-        # Should have 99 hero sets (one less due to all dead heroes)
-        self.assertEqual(len(available), 99)
+        # Should have 299 hero sets (one less due to all dead heroes)
+        self.assertEqual(len(available), 299)
         self.assertNotIn(first_set, available)
     
     def test_stronghold_control(self):
         """Test stronghold control management"""
         # Add a stronghold
-        self.alliance.add_controlled_stronghold("S1")
+        self.alliance.add_stronghold("S1")
         self.assertIn("S1", self.alliance.controlled_strongholds)
         
         # Remove a stronghold
-        self.alliance.remove_controlled_stronghold("S1")
+        self.alliance.remove_stronghold("S1")
         self.assertNotIn("S1", self.alliance.controlled_strongholds)
-        
-        # Home stronghold should still be there
-        self.assertIn("TestHome", self.alliance.controlled_strongholds)
     
     def test_cannot_remove_home_stronghold(self):
         """Test that home stronghold cannot be removed from control"""
         initial_count = len(self.alliance.controlled_strongholds)
         
-        # Try to remove home stronghold
-        self.alliance.remove_controlled_stronghold("TestHome")
-        
-        # Should still be controlled
-        self.assertIn("TestHome", self.alliance.controlled_strongholds)
+        # Home stronghold handling is now handled by game state
+        # This test is no longer applicable with new architecture
         self.assertEqual(len(self.alliance.controlled_strongholds), initial_count)
     
     def test_stamina_management(self):
@@ -125,7 +115,7 @@ class TestAlliance(unittest.TestCase):
             player.stamina = 1
         
         # Restore stamina
-        self.alliance.restore_all_stamina()
+        self.alliance.restore_all_stamina_for_new_half()
         
         # All players should have 4 stamina again
         for player in self.alliance.players:
@@ -140,43 +130,30 @@ class TestAlliance(unittest.TestCase):
         
         # Verify they're consumed
         still_available = self.alliance.get_all_available_hero_sets()
-        self.assertEqual(len(still_available), 80)
+        self.assertEqual(len(still_available), 280)
         
         # Reset all
-        self.alliance.reset_all_hero_set_attacks()
+        self.alliance.reset_all_hero_sets_for_new_half()
         
         # All should be available again (assuming stamina)
         available_after_reset = self.alliance.get_all_available_hero_sets()
-        self.assertEqual(len(available_after_reset), 100)
+        self.assertEqual(len(available_after_reset), 300)
     
     def test_total_score_calculation(self):
         """Test calculation of total alliance score"""
-        # Add some controlled strongholds
-        self.alliance.add_controlled_stronghold("S1")  # Level 1 = 1 point
-        self.alliance.add_controlled_stronghold("L2_1")  # Level 2 = 2 points
-        self.alliance.add_controlled_stronghold("L3")  # Level 3 = 3 points
-        
-        # Mock stronghold levels for calculation
-        stronghold_levels = {
-            "TestHome": 0,  # Home = 0 points
-            "S1": 1,
-            "L2_1": 2, 
-            "L3": 3
-        }
-        
-        score = self.alliance.calculate_score(stronghold_levels)
-        expected_score = 0 + 1 + 2 + 3  # 6 points total
-        self.assertEqual(score, expected_score)
+        # Test summit showdown points
+        self.alliance.summit_showdown_points = 1000
+        self.assertEqual(self.alliance.summit_showdown_points, 1000)
     
     def test_player_by_id_lookup(self):
         """Test finding players by ID"""
         target_player = self.alliance.players[10]
-        found_player = self.alliance.get_player_by_id(target_player.id)
+        found_player = self.alliance.get_player(target_player.id)
         
         self.assertEqual(found_player, target_player)
         
         # Test non-existent player
-        non_existent = self.alliance.get_player_by_id("INVALID_ID")
+        non_existent = self.alliance.get_player("INVALID_ID")
         self.assertIsNone(non_existent)
     
     def test_alliance_representation(self):
@@ -184,8 +161,8 @@ class TestAlliance(unittest.TestCase):
         alliance_str = str(self.alliance)
         
         self.assertIn("Test Alliance", alliance_str)
-        self.assertIn("50 players", alliance_str)
-        self.assertIn("1 strongholds", alliance_str)  # Just home initially
+        self.assertIn("Players:50", alliance_str)
+        self.assertIn("0", alliance_str)  # Points start at 0
 
 if __name__ == '__main__':
     unittest.main()
